@@ -1,0 +1,20 @@
+import Database from 'better-sqlite3';
+import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
+const db=new Database(process.env.DB_PATH||'college.db');db.pragma('journal_mode = WAL');db.pragma('foreign_keys = ON');
+db.exec(`CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE NOT NULL,password TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'admin');
+CREATE TABLE IF NOT EXISTS people(id INTEGER PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('student','staff')),name TEXT NOT NULL,phone TEXT NOT NULL,email TEXT DEFAULT '',identifier TEXT NOT NULL UNIQUE,department TEXT NOT NULL,designation TEXT DEFAULT '',dob TEXT NOT NULL,retirement_date TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS templates(type TEXT PRIMARY KEY,body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY,person_id INTEGER REFERENCES people(id) ON DELETE SET NULL,phone TEXT NOT NULL,body TEXT NOT NULL,type TEXT NOT NULL,status TEXT NOT NULL,provider_id TEXT,error TEXT,unique_key TEXT UNIQUE,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS achievements(id INTEGER PRIMARY KEY,person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,title TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS announcements(id INTEGER PRIMARY KEY,body TEXT NOT NULL,audience TEXT NOT NULL,department TEXT,person_ids TEXT,scheduled_at TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,user_id INTEGER,action TEXT NOT NULL,details TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);`);
+for(const [type,body] of Object.entries({birthday:'Happy Birthday, {name}! Wishing you happiness, success and a wonderful year ahead. Best wishes from {college}.',retirement:'Congratulations on your retirement, {name}! Thank you for your service. Best wishes from {college}.',achievement:'Congratulations {name} on {achievement}! Best wishes from {college}.'}))db.prepare('INSERT OR IGNORE INTO templates(type,body) VALUES(?,?)').run(type,body);
+for(const [key,value] of Object.entries({college:process.env.COLLEGE_NAME||'Smart College',send_time:process.env.SEND_TIME||'09:00'}))db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').run(key,value);
+if(!db.prepare('SELECT id FROM users LIMIT 1').get()){if(!process.env.ADMIN_PASSWORD||!process.env.ADMIN_EMAIL)throw Error('Set ADMIN_EMAIL and ADMIN_PASSWORD in .env');db.prepare('INSERT INTO users(email,password,role) VALUES(?,?,?)').run(process.env.ADMIN_EMAIL,bcrypt.hashSync(process.env.ADMIN_PASSWORD,12),'admin')}
+export default db;
+export const audit=(user,action,details='')=>db.prepare('INSERT INTO audit(user_id,action,details) VALUES(?,?,?)').run(user||null,action,String(details).slice(0,500));
+export const setting=(key)=>db.prepare('SELECT value FROM settings WHERE key=?').get(key)?.value;
+export const render=(body,person,extra={})=>body.replace(/\{(name|college|achievement)\}/g,(_,k)=>({name:person?.name||'',college:setting('college'),achievement:extra.achievement||''})[k]);
+export const uuid=()=>crypto.randomUUID();
