@@ -141,6 +141,15 @@ Frontend: build with `npm run build` in client and deploy `client/dist` to a sta
 - The included dependencies require internet for initial `npm install`.
 - Production hardening (CSRF/session model, consent workflows, comprehensive integration testing, backups, DLT approval and gateway callback verification) remains the operator's responsibility.
 
+## GitHub Pages preview
+
+The `gh-pages` branch publishes the frontend as a static preview at
+<https://hareeshraddi.github.io/Sksvmacet-Automated-and-announcement-wishes/>.
+The preview disables sign-in; login, data, scheduling and SMS require a separately
+hosted API and are not available here. The static files must be rebuilt and
+republished manually after frontend changes. Both this repository and its Pages
+site are public.
+
 ## SMSLocal India integration (updated)
 
 This build supports SMSLocal India (`https://app.smslocal.in`) and retains Fast2SMS as an alternative. **No API key is included.** The credential previously pasted into chat should be rotated in SMSLocal Settings → API & Webhooks before live use.
